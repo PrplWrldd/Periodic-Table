@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D People Visualization</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js and Tween.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <style>
+        body { margin: 0; background-color: #262e31; overflow: hidden; font-family: sans-serif; }
+        #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* Person Tile Styles (Image B requirements) */
+        .element {
+            width: 120px;
+            height: 160px;
+            box-shadow: 0px 0px 12px rgba(0,255,255,0.5);
+            border: 1px solid rgba(127,255,255,0.25);
+            text-align: center;
+            cursor: default;
+            transition: background-color 0.3s ease;
+            position: relative;
+            background-color: rgba(0, 127, 127, 0.5);
+        }
+
+        .element:hover {
+            box-shadow: 0px 0px 12px rgba(0,255,255,0.75);
+            border: 1px solid rgba(127,255,255,0.75);
+        }
+
+        .element .country {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.75);
+        }
+
+        .element .age {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.75);
+        }
+
+        .element .photo {
+            width: 60px;
+            height: 60px;
+            margin: 25px auto 5px auto;
+            border-radius: 50%;
+            border: 2px solid white;
+            object-fit: cover;
+            background: #222;
+        }
+
+        .element .name {
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+            padding: 0 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .element .interest {
+            font-size: 9px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 5px;
+        }
+
+        .element .net-worth {
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(0,0,0,0.3);
+            padding: 4px 0;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Color Coding based on Net Worth */
+        .worth-low { background-color: rgba(239, 48, 34, 0.7) !important; } /* Red < 100k */
+        .worth-med { background-color: rgba(255, 165, 0, 0.7) !important; } /* Orange > 100k */
+        .worth-high { background-color: rgba(0, 200, 83, 0.7) !important; } /* Green > 200k */
+
+        #menu {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+        }
+
+        button {
+            color: rgba(255, 255, 255, 0.75);
+				background: transparent;
+				outline: 1px solid rgba(127,255,255,0.75);
+				border: 0px;
+				padding: 5px 10px;
+				cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+    color: #ffffff; /* Ensure text remains white */
+}
+
+button:active {
+    background-color: #003f7f; /* Even darker blue when clicked */
+    box-shadow: 0 2px 4px rgb(255, 255, 255); /* Reduce shadow for pressed effect */
+}
+
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+
+            background: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Login Overlay (Image A) -->
+    <div id="login-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="mb-6">
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 21c4.418 0 8-3.582 8-8s-3.582-8-8-8a9.963 9.963 0 00-6.799 2.753M12 7V3m0 0L8 7m4-4l4 4m-4 8h.01"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">Sign In With Google</h2>
+                <p class="text-gray-500 mt-2">Welcome Back. Please sign in to continue to the visualization dashboard.</p>
+            </div>
+            
+            <div id="g_id_onload"
+                 data-client_id="991121790744-kh3noi5oc54vgc9mccuopr6v588n8c67.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse">
+            </div>
+            <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+            
+            <!-- Bypass for Demo purposes -->
+            <button onclick="bypassLogin()" class="mt-6 text-sm text-blue-600 hover:underline">Bypass for testing</button>
+        </div>
+    </div>
+
+    <!-- Main View -->
+    <div id="container"></div>
+    
+    <div id="menu">
+        <button id="table">TABLE</button>
+        <button id="sphere">SPHERE</button>
+        <button id="helix">HELIX</button>
+        <button id="grid">GRID</button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Three.js CSS3DRenderer and TrackballControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TrackballControls.js"></script>
+
+    <script>
+        // --- CONFIGURATION ---
+        // Replace with your Google Sheet ID and API Key
+        // Or ensure the sheet is "Published to web" as CSV
+        const SPREADSHEET_ID = '1mRKdhgUnTAYkV4RrlQcUAtnk-eBbU8-FQdHV7pnwU30_ID'; 
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/1mRKdhgUnTAYkV4RrlQcUAtnk-eBbU8-FQdHV7pnwU30/edit?usp=sharing`;
+
+        // Mock Data Fallback (from your provided CSV)
+        const mockData = [
+            { "Name": "Lee Siew Suan", "Photo": "https://static.kasatria.com/pivot-img/photo/019.jpg", "Age": 25, "Country": "CN", "Interest": "Writing", "Net Worth": "$251,260.80" },
+            { "Name": "New Yee Chian", "Photo": "https://static.kasatria.com/pivot-img/photo/020.jpg", "Age": 23, "Country": "CN", "Interest": "Cooking", "Net Worth": "$60,393.60" },
+            { "Name": "Wong Thiam Fook", "Photo": "https://static.kasatria.com/pivot-img/photo/021.jpg", "Age": 30, "Country": "CN", "Interest": "Traveling", "Net Worth": "$212,140.80" },
+            { "Name": "Norsuzilawati Mohd Noor", "Photo": "https://static.kasatria.com/pivot-img/photo/022.jpg", "Age": 30, "Country": "MY", "Interest": "Painting", "Net Worth": "$208,228.80" },
+            { "Name": "Norzainah Omar", "Photo": "https://static.kasatria.com/pivot-img/photo/023.jpg", "Age": 30, "Country": "MY", "Interest": "Hiking", "Net Worth": "$106,555.20" },
+            { "Name": "Meghandran Nathy", "Photo": "https://static.kasatria.com/pivot-img/photo/024.jpg", "Age": 31, "Country": "IN", "Interest": "Cooking", "Net Worth": "$139,080.00" },
+            { "Name": "Joyshree Goswami", "Photo": "https://static.kasatria.com/pivot-img/photo/025.jpg", "Age": 35, "Country": "IN", "Interest": "Painting", "Net Worth": "$192,278.40" }
+            // Add more entries here or fetch from sheet
+        ];
+
+        // Fill data to 200 items for visualization (20x10)
+        let people = [];
+        for(let i=0; i<200; i++) {
+            people.push({...mockData[i % mockData.length], id: i});
+        }
+
+        // --- AUTH LOGIC ---
+        function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token: " + response.credential);
+            document.getElementById('login-overlay').style.display = 'none';
+            init();
+        }
+
+        function bypassLogin() {
+            document.getElementById('login-overlay').style.display = 'none';
+            init();
+        }
+
+        // --- THREE.JS LOGIC ---
+        let camera, scene, renderer, controls;
+        const objects = [];
+        const targets = { table: [], sphere: [], helix: [], grid: [] };
+
+        function init() {
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.z = 3000;
+
+            scene = new THREE.Scene();
+
+            // Create Elements
+            for (let i = 0; i < people.length; i++) {
+                const person = people[i];
+                const worthVal = parseFloat(person['Net Worth'].replace(/[$,]/g, ''));
+                
+                const element = document.createElement('div');
+                element.className = 'element';
+                
+                // Set color class
+                if (worthVal < 100000) element.classList.add('worth-low');
+                else if (worthVal < 200000) element.classList.add('worth-med');
+                else element.classList.add('worth-high');
+
+                const age = document.createElement('div');
+                age.className = 'age';
+                age.textContent = person.Age;
+                element.appendChild(age);
+
+                const country = document.createElement('div');
+                country.className = 'country';
+                country.textContent = person.Country;
+                element.appendChild(country);
+
+                const img = document.createElement('img');
+                img.className = 'photo';
+                img.src = person.Photo;
+                element.appendChild(img);
+
+                const name = document.createElement('div');
+                name.className = 'name';
+                name.textContent = person.Name;
+                element.appendChild(name);
+
+                const interest = document.createElement('div');
+                interest.className = 'interest';
+                interest.textContent = person.Interest;
+                element.appendChild(interest);
+
+                const worth = document.createElement('div');
+                worth.className = 'net-worth';
+                worth.textContent = person['Net Worth'];
+                element.appendChild(worth);
+
+                const object = new THREE.CSS3DObject(element);
+                object.position.x = Math.random() * 4000 - 2000;
+                object.position.y = Math.random() * 4000 - 2000;
+                object.position.z = Math.random() * 4000 - 2000;
+                scene.add(object);
+
+                objects.push(object);
+            }
+
+            // --- LAYOUTS ---
+
+            // 1. Table (20 x 10)
+            for (let i = 0; i < objects.length; i++) {
+                const object = new THREE.Object3D();
+                const col = i % 20;
+                const row = Math.floor(i / 20);
+                object.position.x = (col * 140) - 1330;
+                object.position.y = - (row * 180) + 800;
+                targets.table.push(object);
+            }
+
+            // 2. Sphere
+            const vector = new THREE.Vector3();
+            for (let i = 0, l = objects.length; i < l; i++) {
+                const phi = Math.acos(-1 + (2 * i) / l);
+                const theta = Math.sqrt(l * Math.PI) * phi;
+                const object = new THREE.Object3D();
+                object.position.setFromSphericalCoords(800, phi, theta);
+                vector.copy(object.position).multiplyScalar(2);
+                object.lookAt(vector);
+                targets.sphere.push(object);
+            }
+
+            // 3. Helix (Double Helix)
+            for (let i = 0, l = objects.length; i < l; i++) {
+                const object = new THREE.Object3D();
+                // We create two strands by alternating theta start
+                const strand = i % 2;
+                const theta = i * 0.175 + (strand * Math.PI); 
+                const y = - (i * 8) + 450;
+                
+                object.position.setFromCylindricalCoords(900, theta, y);
+                vector.x = object.position.x * 2;
+                vector.y = object.position.y;
+                vector.z = object.position.z * 2;
+                object.lookAt(vector);
+                targets.helix.push(object);
+            }
+
+            // 4. Grid (5 x 4 x 10)
+            for (let i = 0; i < objects.length; i++) {
+                const object = new THREE.Object3D();
+                // 5 columns, 4 rows, 10 deep
+                object.position.x = ((i % 5) * 400) - 800;
+                object.position.y = (- (Math.floor(i / 5) % 4) * 400) + 600;
+                object.position.z = (Math.floor(i / 25)) * 1000 - 2000;
+                targets.grid.push(object);
+            }
+
+            // Renderer
+            renderer = new THREE.CSS3DRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.TrackballControls(camera, renderer.domElement);
+            controls.minDistance = 500;
+            controls.maxDistance = 6000;
+            controls.addEventListener('change', render);
+
+            // Buttons
+            document.getElementById('table').addEventListener('click', () => transform(targets.table, 2000));
+            document.getElementById('sphere').addEventListener('click', () => transform(targets.sphere, 2000));
+            document.getElementById('helix').addEventListener('click', () => transform(targets.helix, 2000));
+            document.getElementById('grid').addEventListener('click', () => transform(targets.grid, 2000));
+
+            // Default
+            transform(targets.table, 2000);
+
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        }
+
+        function transform(targetSet, duration) {
+            TWEEN.removeAll();
+            for (let i = 0; i < objects.length; i++) {
+                const object = objects[i];
+                const target = targetSet[i];
+
+                new TWEEN.Tween(object.position)
+                    .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
+                    .easing(TWEEN.Easing.Exponential.InOut)
+                    .start();
+
+                new TWEEN.Tween(object.rotation)
+                    .to({ x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration)
+                    .easing(TWEEN.Easing.Exponential.InOut)
+                    .start();
+            }
+
+            new TWEEN.Tween(this)
+                .to({}, duration * 2)
+                .onUpdate(render)
+                .start();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            render();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            controls.update();
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
