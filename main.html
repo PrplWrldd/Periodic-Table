@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <style>
-        body { margin: 0; background-color: #262e31; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; background-color: #000; overflow: hidden; font-family: sans-serif; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         
         /* Person Tile Styles (Image B requirements) */
@@ -98,28 +98,23 @@
         }
 
         button {
-            color: rgba(255, 255, 255, 0.75);
-				background: transparent;
-				outline: 1px solid rgba(127,255,255,0.75);
-				border: 0px;
-				padding: 5px 10px;
-				cursor: pointer;
-}
+            color: rgba(127,255,255,0.75);
+            background: transparent;
+            outline: 1px solid rgba(127,255,255,0.75);
+            border: 0px;
+            padding: 5px 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin: 0 5px;
+            transition: all 0.2s;
+        }
 
-button:hover {
-    background-color: #0056b3; /* Darker blue on hover */
-    color: #ffffff; /* Ensure text remains white */
-}
-
-button:active {
-    background-color: #003f7f; /* Even darker blue when clicked */
-    box-shadow: 0 2px 4px rgb(255, 255, 255); /* Reduce shadow for pressed effect */
-}
+        button:hover { background-color: rgba(0,255,255,0.5); }
+        button:active { color: #000; background-color: rgba(0,255,255,0.75); }
 
         #login-overlay {
             position: fixed;
             inset: 0;
-
             background: #0f172a;
             display: flex;
             align-items: center;
@@ -172,25 +167,47 @@ button:active {
         // --- CONFIGURATION ---
         // Replace with your Google Sheet ID and API Key
         // Or ensure the sheet is "Published to web" as CSV
-        const SPREADSHEET_ID = '1mRKdhgUnTAYkV4RrlQcUAtnk-eBbU8-FQdHV7pnwU30_ID'; 
-        const CSV_URL = `https://docs.google.com/spreadsheets/d/1mRKdhgUnTAYkV4RrlQcUAtnk-eBbU8-FQdHV7pnwU30/edit?usp=sharing`;
+        const SPREADSHEET_ID = '2PACX-1vRGZFOJAUuw16LdKTZmOxJFRDNL1Iojpz7D5THz1zahhsVEGwnJr8fWUyq90EBKNCjBtGJCIHuN1p2v'; 
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRGZFOJAUuw16LdKTZmOxJFRDNL1Iojpz7D5THz1zahhsVEGwnJr8fWUyq90EBKNCjBtGJCIHuN1p2v/pub?output=csv`;
 
-        // Mock Data Fallback (from your provided CSV)
-        const mockData = [
-            { "Name": "Lee Siew Suan", "Photo": "https://static.kasatria.com/pivot-img/photo/019.jpg", "Age": 25, "Country": "CN", "Interest": "Writing", "Net Worth": "$251,260.80" },
-            { "Name": "New Yee Chian", "Photo": "https://static.kasatria.com/pivot-img/photo/020.jpg", "Age": 23, "Country": "CN", "Interest": "Cooking", "Net Worth": "$60,393.60" },
-            { "Name": "Wong Thiam Fook", "Photo": "https://static.kasatria.com/pivot-img/photo/021.jpg", "Age": 30, "Country": "CN", "Interest": "Traveling", "Net Worth": "$212,140.80" },
-            { "Name": "Norsuzilawati Mohd Noor", "Photo": "https://static.kasatria.com/pivot-img/photo/022.jpg", "Age": 30, "Country": "MY", "Interest": "Painting", "Net Worth": "$208,228.80" },
-            { "Name": "Norzainah Omar", "Photo": "https://static.kasatria.com/pivot-img/photo/023.jpg", "Age": 30, "Country": "MY", "Interest": "Hiking", "Net Worth": "$106,555.20" },
-            { "Name": "Meghandran Nathy", "Photo": "https://static.kasatria.com/pivot-img/photo/024.jpg", "Age": 31, "Country": "IN", "Interest": "Cooking", "Net Worth": "$139,080.00" },
-            { "Name": "Joyshree Goswami", "Photo": "https://static.kasatria.com/pivot-img/photo/025.jpg", "Age": 35, "Country": "IN", "Interest": "Painting", "Net Worth": "$192,278.40" }
-            // Add more entries here or fetch from sheet
-        ];
+        
 
         // Fill data to 200 items for visualization (20x10)
-        let people = [];
+        
+let people = [];
+
+async function fetchCSVData() {
+    try {
+        const response = await fetch(CSV_URL);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const csvText = await response.text();
+        parseCSV(csvText);
+    } catch (error) {
+        console.error("Error fetching CSV data:", error);
+    }
+}
+
+function parseCSV(csvText) {
+    const rows = csvText.split("\n").map(row => row.split(","));
+    const headers = rows.shift(); // Extract headers
+    people = rows.map((row, index) => {
+        const person = {};
+        headers.forEach((header, i) => {
+            person[header.trim()] = row[i]?.trim();
+        });
+        person.id = index; // Add unique ID
+        return person;
+    });
+    console.log("Parsed People Data:", people);
+    init(); // Call init after data is loaded
+}
+
+// Fetch data and initialize
+fetchCSVData();
         for(let i=0; i<200; i++) {
-            people.push({...mockData[i % mockData.length], id: i});
+            people.push({...CSV_URL[i % CSV_URL.length], id: i});
         }
 
         // --- AUTH LOGIC ---
