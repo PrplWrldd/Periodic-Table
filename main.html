@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <style>
-        body { margin: 0; background-color: #000; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; background-color: #1b2f32; overflow: hidden; font-family: sans-serif; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         
         /* Person Tile Styles (Image B requirements) */
@@ -98,8 +98,8 @@
         }
 
         button {
-            color: rgba(127,255,255,0.75);
-            background: transparent;
+            color: rgba(255, 255, 255, 0.75);
+            background: white;
             outline: 1px solid rgba(127,255,255,0.75);
             border: 0px;
             padding: 5px 10px;
@@ -273,7 +273,7 @@ fetchCSVData();
 
                 const worth = document.createElement('div');
                 worth.className = 'net-worth';
-                worth.textContent = person['Net Worth'];
+                worth.textContent = `$${parseFloat(person['Net Worth'].replace(/[^0-9.]/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 element.appendChild(worth);
 
                 const object = new THREE.CSS3DObject(element);
@@ -310,19 +310,22 @@ fetchCSVData();
             }
 
             // 3. Helix (Double Helix)
-            for (let i = 0, l = objects.length; i < l; i++) {
-                const object = new THREE.Object3D();
-                // We create two strands by alternating theta start
-                const strand = i % 2;
-                const theta = i * 0.175 + (strand * Math.PI); 
-                const y = - (i * 8) + 450;
-                
-                object.position.setFromCylindricalCoords(900, theta, y);
-                vector.x = object.position.x * 2;
-                vector.y = object.position.y;
-                vector.z = object.position.z * 2;
-                object.lookAt(vector);
-                targets.helix.push(object);
+            for ( let i = 0, l = objects.length; i < l; i ++ ) {
+
+            const theta = i * 0.175 + Math.PI;
+            const y = - ( i * 8 ) + 450;
+
+            const object = new THREE.Object3D();
+
+            object.position.setFromCylindricalCoords( 900, theta, y );
+
+            vector.x = object.position.x * 2;
+            vector.y = object.position.y;
+            vector.z = object.position.z * 2;
+
+            object.lookAt( vector );
+
+            targets.helix.push( object );
             }
 
             // 4. Grid (5 x 4 x 10)
