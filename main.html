@@ -13,7 +13,6 @@
         body { margin: 0; background-color: #1b2f32; overflow: hidden; font-family: sans-serif; }
         #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         
-        /* Person Tile Styles (Image B requirements) */
         .element {
             width: 120px;
             height: 160px;
@@ -74,7 +73,7 @@
         }
 
         .element .net-worth {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             color: #fff;
             background: rgba(0,0,0,0.3);
@@ -95,22 +94,23 @@
             width: 100%;
             text-align: center;
             z-index: 10;
+            display: none; /* Hidden until data loads */
         }
 
-        button {
+        button.nav-btn {
             color: rgba(255, 255, 255, 0.75);
-            background: white;
+            background: rgba(255, 255, 255, 0.1);
             outline: 1px solid rgba(127,255,255,0.75);
             border: 0px;
-            padding: 5px 10px;
+            padding: 5px 15px;
             cursor: pointer;
             text-transform: uppercase;
             margin: 0 5px;
             transition: all 0.2s;
         }
 
-        button:hover { background-color: rgba(0,255,255,0.5); }
-        button:active { color: #000; background-color: rgba(0,255,255,0.75); }
+        button.nav-btn:hover { background-color: rgba(0,255,255,0.3); }
+        button.nav-btn:active { color: #000; background-color: rgba(0,255,255,0.75); }
 
         #login-overlay {
             position: fixed;
@@ -125,7 +125,7 @@
 </head>
 <body>
 
-    <!-- Login Overlay (Image A) -->
+    <!-- Login Overlay -->
     <div id="login-overlay">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
             <div class="mb-6">
@@ -142,7 +142,6 @@
             </div>
             <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
             
-            <!-- Bypass for Demo purposes -->
             <button onclick="bypassLogin()" class="mt-6 text-sm text-blue-600 hover:underline">Bypass for testing</button>
         </div>
     </div>
@@ -151,75 +150,76 @@
     <div id="container"></div>
     
     <div id="menu">
-        <button id="table">TABLE</button>
-        <button id="sphere">SPHERE</button>
-        <button id="helix">HELIX</button>
-        <button id="grid">GRID</button>
+        <button id="table" class="nav-btn">TABLE</button>
+        <button id="sphere" class="nav-btn">SPHERE</button>
+        <button id="helix" class="nav-btn">HELIX</button>
+        <button id="grid" class="nav-btn">GRID</button>
     </div>
 
-    <!-- Scripts -->
+    <!-- Google Identity Library -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
     <!-- Three.js CSS3DRenderer and TrackballControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TrackballControls.js"></script>
 
     <script>
-        // --- CONFIGURATION ---
-        // Replace with your Google Sheet ID and API Key
-        // Or ensure the sheet is "Published to web" as CSV
-        const SPREADSHEET_ID = '2PACX-1vRGZFOJAUuw16LdKTZmOxJFRDNL1Iojpz7D5THz1zahhsVEGwnJr8fWUyq90EBKNCjBtGJCIHuN1p2v'; 
+        // --- DATA SETUP ---
         const CSV_URL = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRGZFOJAUuw16LdKTZmOxJFRDNL1Iojpz7D5THz1zahhsVEGwnJr8fWUyq90EBKNCjBtGJCIHuN1p2v/pub?output=csv`;
+        let people = [];
 
-        
-
-        // Fill data to 200 items for visualization (20x10)
-        
-let people = [];
-
-async function fetchCSVData() {
-    try {
-        const response = await fetch(CSV_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        async function fetchCSVData() {
+            try {
+                const response = await fetch(CSV_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const csvText = await response.text();
+                parseCSV(csvText);
+            } catch (error) {
+                console.error("Error fetching CSV data:", error);
+                // Fallback for demo if fetch fails
+                init();
+            }
         }
-        const csvText = await response.text();
-        parseCSV(csvText);
-    } catch (error) {
-        console.error("Error fetching CSV data:", error);
-    }
-}
 
-function parseCSV(csvText) {
-    const rows = csvText.split("\n").map(row => row.split(","));
-    const headers = rows.shift(); // Extract headers
-    people = rows.map((row, index) => {
-        const person = {};
-        headers.forEach((header, i) => {
-            person[header.trim()] = row[i]?.trim();
-        });
-        person.id = index; // Add unique ID
-        return person;
-    });
-    console.log("Parsed People Data:", people);
-    init(); // Call init after data is loaded
-}
+        function parseCSV(csvText) {
+            const lines = csvText.split("\n");
+            const headers = lines[0].split(",").map(h => h.trim());
+            
+            const rawData = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                // Regex to handle CSV with potential commas inside quotes (like "$250,000")
+                const values = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if (!values) continue;
 
-// Fetch data and initialize
-fetchCSVData();
-        for(let i=0; i<200; i++) {
-            people.push({...CSV_URL[i % CSV_URL.length], id: i});
+                const person = {};
+                headers.forEach((header, index) => {
+                    let val = values[index] ? values[index].trim() : "";
+                    person[header] = val.replace(/^"|"$/g, ''); // Remove outer quotes
+                });
+                rawData.push(person);
+            }
+
+            // Fill to 200 items for the visualization grid
+            people = [];
+            for(let i = 0; i < 200; i++) {
+                people.push({...rawData[i % rawData.length], id: i});
+            }
+            
+            init(); // Now initialize Three.js
         }
 
         // --- AUTH LOGIC ---
-        function handleCredentialResponse(response) {
-            console.log("Encoded JWT ID token: " + response.credential);
+        window.handleCredentialResponse = function(response) {
             document.getElementById('login-overlay').style.display = 'none';
-            init();
-        }
+            fetchCSVData();
+        };
 
         function bypassLogin() {
             document.getElementById('login-overlay').style.display = 'none';
-            init();
+            fetchCSVData();
         }
 
         // --- THREE.JS LOGIC ---
@@ -228,15 +228,17 @@ fetchCSVData();
         const targets = { table: [], sphere: [], helix: [], grid: [] };
 
         function init() {
+            document.getElementById('menu').style.display = 'block';
+
             camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 10000);
             camera.position.z = 3000;
 
             scene = new THREE.Scene();
 
-            // Create Elements
             for (let i = 0; i < people.length; i++) {
                 const person = people[i];
-                const worthVal = parseFloat(person['Net Worth'].replace(/[$,]/g, ''));
+                const rawWorth = person['Net Worth'] || "$0";
+                const worthVal = parseFloat(rawWorth.replace(/[$,]/g, '')) || 0;
                 
                 const element = document.createElement('div');
                 element.className = 'element';
@@ -248,32 +250,32 @@ fetchCSVData();
 
                 const age = document.createElement('div');
                 age.className = 'age';
-                age.textContent = person.Age;
+                age.textContent = person.Age || "?";
                 element.appendChild(age);
 
                 const country = document.createElement('div');
                 country.className = 'country';
-                country.textContent = person.Country;
+                country.textContent = person.Country || "??";
                 element.appendChild(country);
 
                 const img = document.createElement('img');
                 img.className = 'photo';
-                img.src = person.Photo;
+                img.src = person.Photo || "https://via.placeholder.com/60";
                 element.appendChild(img);
 
                 const name = document.createElement('div');
                 name.className = 'name';
-                name.textContent = person.Name;
+                name.textContent = person.Name || "Unknown";
                 element.appendChild(name);
 
                 const interest = document.createElement('div');
                 interest.className = 'interest';
-                interest.textContent = person.Interest;
+                interest.textContent = person.Interest || "None";
                 element.appendChild(interest);
 
                 const worth = document.createElement('div');
                 worth.className = 'net-worth';
-                worth.textContent = `$${parseFloat(person['Net Worth'].replace(/[^0-9.]/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                worth.textContent = rawWorth;
                 element.appendChild(worth);
 
                 const object = new THREE.CSS3DObject(element);
@@ -285,9 +287,9 @@ fetchCSVData();
                 objects.push(object);
             }
 
-            // --- LAYOUTS ---
+            // --- TARGET LAYOUT CALCULATIONS ---
 
-            // 1. Table (20 x 10)
+            // 1. Table
             for (let i = 0; i < objects.length; i++) {
                 const object = new THREE.Object3D();
                 const col = i % 20;
@@ -309,53 +311,42 @@ fetchCSVData();
                 targets.sphere.push(object);
             }
 
-            // 3. Helix (Double Helix)
-            for ( let i = 0, l = objects.length; i < l; i ++ ) {
-
-            const theta = i * 0.175 + Math.PI;
-            const y = - ( i * 8 ) + 450;
-
-            const object = new THREE.Object3D();
-
-            object.position.setFromCylindricalCoords( 900, theta, y );
-
-            vector.x = object.position.x * 2;
-            vector.y = object.position.y;
-            vector.z = object.position.z * 2;
-
-            object.lookAt( vector );
-
-            targets.helix.push( object );
+            // 3. Helix
+            for (let i = 0, l = objects.length; i < l; i++) {
+                const theta = i * 0.175 + Math.PI;
+                const y = - (i * 8) + 450;
+                const object = new THREE.Object3D();
+                object.position.setFromCylindricalCoords(900, theta, y);
+                vector.x = object.position.x * 2;
+                vector.y = object.position.y;
+                vector.z = object.position.z * 2;
+                object.lookAt(vector);
+                targets.helix.push(object);
             }
 
-            // 4. Grid (5 x 4 x 10)
+            // 4. Grid
             for (let i = 0; i < objects.length; i++) {
                 const object = new THREE.Object3D();
-                // 5 columns, 4 rows, 10 deep
                 object.position.x = ((i % 5) * 400) - 800;
                 object.position.y = (- (Math.floor(i / 5) % 4) * 400) + 600;
                 object.position.z = (Math.floor(i / 25)) * 1000 - 2000;
                 targets.grid.push(object);
             }
 
-            // Renderer
             renderer = new THREE.CSS3DRenderer();
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('container').appendChild(renderer.domElement);
 
-            // Controls
             controls = new THREE.TrackballControls(camera, renderer.domElement);
             controls.minDistance = 500;
             controls.maxDistance = 6000;
             controls.addEventListener('change', render);
 
-            // Buttons
             document.getElementById('table').addEventListener('click', () => transform(targets.table, 2000));
             document.getElementById('sphere').addEventListener('click', () => transform(targets.sphere, 2000));
             document.getElementById('helix').addEventListener('click', () => transform(targets.helix, 2000));
             document.getElementById('grid').addEventListener('click', () => transform(targets.grid, 2000));
 
-            // Default
             transform(targets.table, 2000);
 
             window.addEventListener('resize', onWindowResize, false);
